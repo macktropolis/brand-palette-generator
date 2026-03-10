@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brand Palette Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--color-bg, #F5F2FD);
+    color: var(--color-text, #16102A);
+    min-height: 100vh;
+    padding: 48px 32px;
+    transition: background 0.4s ease, color 0.4s ease;
+  }
+
+  .picker-bar {
+    max-width: 900px;
+    margin: 0 auto 48px;
+    background: var(--color-surface, #FDFCFF);
+    border: 1px solid var(--color-border, #DDD6F2);
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    transition: background 0.4s, border-color 0.4s, box-shadow 0.4s;
+  }
+
+  .picker-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-muted, #7A6FA0);
+    white-space: nowrap;
+    transition: color 0.4s;
+  }
+
+  .picker-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+  }
+
+  input[type="color"] {
+    width: 44px; height: 44px;
+    border: none; border-radius: 8px;
+    cursor: pointer; padding: 2px;
+    background: none; flex-shrink: 0;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  input[type="color"]::-webkit-color-swatch { border-radius: 6px; border: none; }
+
+  .hex-input-wrap { position: relative; flex: 1; max-width: 160px; }
+  .hex-prefix {
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    color: var(--color-text-muted, #7A6FA0);
+    pointer-events: none;
+    transition: color 0.4s;
+  }
+
+  .hex-input {
+    width: 100%;
+    background: var(--color-bg, #F5F2FD);
+    border: 1px solid var(--color-border, #DDD6F2);
+    border-radius: 8px;
+    padding: 10px 12px 10px 24px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem; font-weight: 500;
+    color: var(--color-text, #16102A);
+    outline: none; text-transform: uppercase;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.4s, color 0.4s;
+  }
+  .hex-input:focus { border-color: var(--color-brand); box-shadow: 0 0 0 3px var(--color-brand-alpha, rgba(112,52,202,0.14)); }
+  .hex-input.invalid { border-color: #e05555 !important; }
+
+  .generate-btn {
+    background: var(--color-brand, #7034CA);
+    color: #fff;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    border: none; border-radius: 8px; padding: 10px 20px;
+    cursor: pointer; white-space: nowrap;
+    transition: opacity 0.15s, background 0.4s;
+  }
+  .generate-btn:hover { opacity: 0.88; }
+
+  .current-brand { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .brand-dot-lg {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--color-brand, #7034CA);
+    box-shadow: 0 0 0 4px var(--color-brand-subtle, #EDE8F8);
+    transition: background 0.4s, box-shadow 0.4s; flex-shrink: 0;
+  }
+  .brand-hex-display { font-size: 0.78rem; font-weight: 500; color: var(--color-brand, #7034CA); transition: color 0.4s; }
+
+  header { max-width: 900px; margin: 0 auto 52px; }
+  .eyebrow { font-size: 0.65rem; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--color-brand, #7034CA); margin-bottom: 12px; transition: color 0.4s; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 300; font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.1; color: var(--color-text); margin-bottom: 16px; transition: color 0.4s; }
+  h1 em { font-style: italic; color: var(--color-brand); transition: color 0.4s; }
+  .subtitle { font-size: 0.82rem; color: var(--color-text-muted); line-height: 1.7; max-width: 560px; transition: color 0.4s; }
+
+  .section { max-width: 900px; margin: 0 auto 52px; }
+  .section-label { font-size: 0.62rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--color-border); transition: color 0.4s, border-color 0.4s; }
+
+  .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .token-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, background 0.4s, border-color 0.4s; }
+  .token-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .token-card:hover .copy-hint { opacity: 1; }
+  .swatch { height: 72px; position: relative; transition: background 0.4s; }
+  .copy-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.18); color: #fff; font-size: 0.65rem; letter-spacing: 0.1em; opacity: 0; transition: opacity 0.15s; }
+  .token-info { padding: 10px 12px; }
+  .token-name { font-size: 0.68rem; font-weight: 500; color: var(--color-text-2); margin-bottom: 3px; transition: color 0.4s; }
+  .token-value { font-size: 0.65rem; color: var(--color-text-muted); margin-bottom: 2px; transition: color 0.4s; }
+  .token-desc { font-size: 0.6rem; color: var(--color-text-muted); opacity: 0.7; line-height: 1.4; }
+
+  .shadow-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .shadow-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 24px; text-align: center; transition: background 0.4s, border-color 0.4s; }
+  .shadow-card.sm { box-shadow: var(--shadow-sm); }
+  .shadow-card.md { box-shadow: var(--shadow-md); }
+  .shadow-card.lg { box-shadow: var(--shadow-lg); }
+  .shadow-label { font-size: 0.65rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 6px; transition: color 0.4s; }
+  .shadow-value { font-size: 0.6rem; color: var(--color-text-muted); opacity: 0.7; word-break: break-all; line-height: 1.5; transition: color 0.4s; }
+
+  .text-demo { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 28px 32px; box-shadow: var(--shadow-md); transition: background 0.4s, border-color 0.4s, box-shadow 0.4s; }
+  .text-row { display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--color-border); transition: border-color 0.4s; }
+  .text-row:last-child { border-bottom: none; }
+  .text-row-label { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); width: 110px; flex-shrink: 0; transition: color 0.4s; }
+  .text-row-sample { flex: 1; transition: color 0.4s; }
+  .text-row-hex { font-size: 0.65rem; color: var(--color-text-muted); opacity: 0.7; }
+
+  .live-demo { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .demo-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 24px; box-shadow: var(--shadow-md); transition: background 0.4s, border-color 0.4s, box-shadow 0.4s; }
+  .card-eyebrow { font-size: 0.62rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 8px; transition: color 0.4s; }
+  .card-title-demo { font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.1rem; color: var(--color-text); line-height: 1.3; margin-bottom: 8px; transition: color 0.4s; }
+  .card-body-demo { font-size: 0.82rem; line-height: 1.65; color: var(--color-text-2); margin-bottom: 16px; transition: color 0.4s; }
+  .card-badge { display: inline-block; background: var(--color-brand-subtle); color: var(--color-brand); font-size: 0.65rem; font-weight: 500; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 4px; transition: background 0.4s, color 0.4s; }
+  .btn-demo { display: inline-flex; align-items: center; gap: 6px; background: var(--color-brand); color: #fff; font-family: 'DM Mono', monospace; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; margin-top: 4px; transition: opacity 0.15s, background 0.4s; }
+  .btn-demo:hover { opacity: 0.88; }
+  .btn-ghost { background: transparent; color: var(--color-brand); border: 1px solid var(--color-border-strong); transition: background 0.15s, color 0.4s, border-color 0.4s; }
+  .btn-ghost:hover { background: var(--color-brand-subtle); }
+  .input-demo { width: 100%; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 12px; font-family: 'DM Mono', monospace; font-size: 0.78rem; color: var(--color-text); outline: none; margin-bottom: 10px; transition: border-color 0.15s, box-shadow 0.15s, background 0.4s, color 0.4s; }
+  .input-demo:focus { border-color: var(--color-brand); box-shadow: 0 0 0 3px var(--color-brand-alpha, rgba(112,52,202,0.14)); }
+  .input-label { font-size: 0.65rem; font-weight: 500; color: var(--color-text-2); display: block; margin-bottom: 5px; transition: color 0.4s; }
+
+  /* ── SEMANTIC SECTION ── */
+  .semantic-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+  .semantic-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.4s, border-color 0.4s, box-shadow 0.4s;
+  }
+
+  .semantic-swatch-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    height: 56px;
+  }
+
+  .semantic-swatch-piece { transition: background 0.4s; cursor: pointer; position: relative; }
+  .semantic-swatch-piece:hover .copy-hint { opacity: 1; }
+
+  .semantic-body { padding: 14px 16px; }
+
+  .semantic-title {
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    transition: color 0.4s;
+  }
+
+  .semantic-tokens { display: flex; flex-direction: column; gap: 6px; }
+
+  .semantic-token-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .semantic-token-name { font-size: 0.6rem; color: var(--color-text-muted); transition: color 0.4s; }
+  .semantic-token-val  { font-size: 0.62rem; font-weight: 500; transition: color 0.4s; cursor: pointer; }
+  .semantic-token-val:hover { text-decoration: underline; }
+
+  .semantic-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    transition: background 0.4s;
+  }
+
+  /* Live semantic demo */
+  .semantic-demo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .alert-card {
+    border-radius: 8px;
+    padding: 14px 16px;
+    border-left: 3px solid transparent;
+    transition: background 0.4s, border-color 0.4s;
+  }
+
+  .alert-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+
+  .alert-icon {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 700; flex-shrink: 0;
+    transition: background 0.4s, color 0.4s;
+  }
+
+  .alert-title { font-size: 0.72rem; font-weight: 500; transition: color 0.4s; }
+  .alert-body  { font-size: 0.68rem; line-height: 1.5; transition: color 0.4s; }
+
+  .semantic-explanation {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.4s, border-color 0.4s;
+  }
+
+  .explanation-text {
+    font-size: 0.75rem;
+    line-height: 1.7;
+    color: var(--color-text-2);
+    transition: color 0.4s;
+  }
+
+  .explanation-text strong { color: var(--color-text); }
+
+  .hue-shift-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .hue-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-surface-2, #EDE8F8);
+    border-radius: 20px;
+    padding: 4px 10px 4px 6px;
+    font-size: 0.62rem;
+    color: var(--color-text-2);
+    transition: background 0.4s, color 0.4s;
+  }
+
+  .hue-chip-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  @media (max-width: 600px) {
+    .semantic-grid, .semantic-demo-grid { grid-template-columns: 1fr; }
+  }
+
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .compare-card { border-radius: 8px; padding: 20px; border: 1px solid #e5e5e5; }
+  .compare-dead { background: #ffffff; border-color: #e5e5e5; }
+  .compare-alive { background: var(--color-surface); border-color: var(--color-border); box-shadow: var(--shadow-sm); transition: background 0.4s, border-color 0.4s, box-shadow 0.4s; }
+  .compare-label { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; font-weight: 500; }
+  .dead-label { color: #999; }
+  .alive-label { color: var(--color-brand); transition: color 0.4s; }
+  .compare-accent { display: inline-block; width: 28px; height: 6px; border-radius: 3px; background: var(--color-brand); margin-bottom: 8px; transition: background 0.4s; }
+  .compare-text-dead { color: #333; font-size: 0.82rem; line-height: 1.6; }
+  .compare-text-alive { color: var(--color-text-2); font-size: 0.82rem; line-height: 1.6; transition: color 0.4s; }
+
+  .code-block { background: var(--color-text); color: #c8bfee; border-radius: 8px; padding: 24px; font-size: 0.72rem; line-height: 1.8; overflow-x: auto; position: relative; transition: background 0.4s; }
+  .copy-btn { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.08); color: #c8bfee; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 4px 10px; font-family: 'DM Mono', monospace; font-size: 0.62rem; cursor: pointer; transition: background 0.15s; }
+  .copy-btn:hover { background: rgba(255,255,255,0.14); }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--color-text); color: #e8deff; font-size: 0.72rem; padding: 10px 18px; border-radius: 6px; box-shadow: var(--shadow-lg); transform: translateY(60px); opacity: 0; transition: all 0.2s ease; pointer-events: none; z-index: 100; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  @media (max-width: 600px) {
+    .shadow-row, .live-demo, .compare-grid { grid-template-columns: 1fr; }
+    body { padding: 28px 20px; }
+    .picker-bar { flex-direction: column; align-items: flex-start; }
+    .current-brand { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="picker-bar">
+  <span class="picker-label">Brand Color</span>
+  <div class="picker-controls">
+    <input type="color" id="colorPicker" value="#7034CA">
+    <div class="hex-input-wrap">
+      <span class="hex-prefix">#</span>
+      <input type="text" class="hex-input" id="hexInput" value="7034CA" maxlength="6" spellcheck="false">
+    </div>
+    <button class="generate-btn" onclick="applyFromInput()">Generate</button>
+  </div>
+  <div class="current-brand">
+    <div class="brand-dot-lg"></div>
+    <span class="brand-hex-display" id="brandHexDisplay">#7034CA</span>
+  </div>
+</div>
+
+<header>
+  <p class="eyebrow">Tinted Neutral System</p>
+  <h1>Your <em>premium</em><br>color palette</h1>
+  <p class="subtitle">Every neutral carries a trace of your brand hue. Backgrounds lean into your color. Shadows carry brand temperature. No pure greys anywhere.</p>
+</header>
+
+<div class="section">
+  <p class="section-label">01 — Backgrounds &amp; Surfaces</p>
+  <div class="palette-grid" id="surface-grid"></div>
+</div>
+
+<div class="section">
+  <p class="section-label">02 — Borders</p>
+  <div class="palette-grid" id="border-grid"></div>
+</div>
+
+<div class="section">
+  <p class="section-label">03 — Text Hierarchy</p>
+  <div class="text-demo">
+    <div class="text-row">
+      <span class="text-row-label">--color-text</span>
+      <span class="text-row-sample" id="text-sample-1" style="font-size:1.1rem;font-family:'Fraunces',serif;font-weight:600;">The quick fox jumps over the lazy dog</span>
+      <span class="text-row-hex" id="text-hex-1"></span>
+    </div>
+    <div class="text-row">
+      <span class="text-row-label">--color-text-2</span>
+      <span class="text-row-sample" id="text-sample-2">Secondary information and supporting copy goes here</span>
+      <span class="text-row-hex" id="text-hex-2"></span>
+    </div>
+    <div class="text-row">
+      <span class="text-row-label">--color-text-muted</span>
+      <span class="text-row-sample" id="text-sample-3" style="font-size:0.82rem;">Labels, captions, metadata, timestamps</span>
+      <span class="text-row-hex" id="text-hex-3"></span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="section-label">04 — Brand Accent</p>
+  <div class="palette-grid" id="brand-grid"></div>
+</div>
+
+<div class="section">
+  <p class="section-label">05 — Brand-Tinted Shadows</p>
+  <div class="shadow-row">
+    <div class="shadow-card sm">
+      <p class="shadow-label">--shadow-sm</p>
+      <p class="shadow-value" id="shadow-sm-val"></p>
+    </div>
+    <div class="shadow-card md">
+      <p class="shadow-label">--shadow-md</p>
+      <p class="shadow-value" id="shadow-md-val"></p>
+    </div>
+    <div class="shadow-card lg">
+      <p class="shadow-label">--shadow-lg</p>
+      <p class="shadow-value" id="shadow-lg-val"></p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="section-label">05b — Semantic Colors: Danger, Warning, Success</p>
+
+  <div class="semantic-explanation">
+    <p class="explanation-text">
+      Pure <strong>#FF0000</strong>, <strong>#FFCC00</strong>, and <strong>#00CC44</strong> fight with branded surfaces because their hue sits at 0°, 50°, and 140° regardless of your palette's temperature. The fix: nudge each semantic hue <strong>±15–25° toward your brand's hue</strong>, then match their lightness and saturation profile to the rest of your token system. They stay immediately readable as danger/warning/success while feeling like they belong.
+    </p>
+    <div class="hue-shift-row" id="hue-shift-explanation"></div>
+  </div>
+
+  <div class="semantic-grid" id="semantic-grid"></div>
+
+  <p class="section-label" style="margin-top:24px;">Semantic — Live Alert Preview</p>
+  <div class="semantic-demo-grid" id="semantic-demo"></div>
+</div>
+
+<div class="section">
+  <p class="section-label">07 — Pure Neutral vs Tinted Neutral</p>
+  <div class="compare-grid">
+    <div class="compare-card compare-dead">
+      <p class="compare-label dead-label">✗ Pure Neutral — disconnected</p>
+      <div id="dead-accent" style="display:inline-block;width:28px;height:6px;border-radius:3px;margin-bottom:8px;"></div>
+      <p class="compare-text-dead">The brand color floats on top of grey. It reads as a guest in its own house. No relationship to the surface beneath it.</p>
+      <span style="display:inline-block;background:#f0f0f0;color:#555;font-size:0.65rem;padding:3px 10px;border-radius:4px;margin-top:12px;font-family:monospace;">bg: #ffffff · text: #333333</span>
+    </div>
+    <div class="compare-card compare-alive">
+      <p class="compare-label alive-label">✓ Tinted Neutral — cohesive</p>
+      <div class="compare-accent"></div>
+      <p class="compare-text-alive">The brand color intensifies what's already running through the page. It feels like it belongs. The background leans into your hue.</p>
+      <span class="card-badge" style="margin-top:12px;" id="compare-alive-label"></span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="section-label">08 — Live Component Preview</p>
+  <div class="live-demo">
+    <div class="demo-card">
+      <p class="card-eyebrow">Feature Update</p>
+      <p class="card-title-demo">Tinted neutrals make everything feel intentional</p>
+      <p class="card-body-demo">Every surface in this card carries 1–3% of the brand hue. The shadow leans into your brand color. The badge uses --color-brand-subtle.</p>
+      <span class="card-badge">Premium</span><br>
+      <button class="btn-demo" style="margin-top:14px;">Get started</button>
+      <button class="btn-demo btn-ghost" style="margin-left:8px;">Learn more</button>
+    </div>
+    <div class="demo-card">
+      <p class="card-eyebrow">Sign in</p>
+      <p class="card-title-demo">Welcome back</p>
+      <label class="input-label">Email address</label>
+      <input class="input-demo" type="email" placeholder="you@example.com">
+      <label class="input-label">Password</label>
+      <input class="input-demo" type="password" placeholder="••••••••">
+      <button class="btn-demo" style="width:100%;justify-content:center;">Continue</button>
+      <p style="font-size:0.65rem;color:var(--color-text-muted);margin-top:10px;text-align:center;">No account? <span id="signup-link" style="cursor:pointer;">Sign up free</span></p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="section-label">09 — Copy CSS Tokens</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCSS()">Copy</button>
+    <pre id="css-code" style="white-space:pre-wrap;font-family:'DM Mono',monospace;font-size:0.72rem;line-height:1.8;color:#c8bfee;"></pre>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── COLOR MATH ──────────────────────────────────────────────────
+
+function hexToRgb(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  return {
+    r: parseInt(hex.slice(0, 2), 16),
+    g: parseInt(hex.slice(2, 4), 16),
+    b: parseInt(hex.slice(4, 6), 16)
+  };
+}
+
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(v => {
+    const h = Math.round(Math.max(0, Math.min(255, v))).toString(16);
+    return h.length === 1 ? '0' + h : h;
+  }).join('').toUpperCase();
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) { h = s = 0; }
+  else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return { h: h * 360, s: s * 100, l: l * 100 };
+}
+
+function hslToRgb(h, s, l) {
+  h /= 360; s /= 100; l /= 100;
+  let r, g, b;
+  if (s === 0) { r = g = b = l; }
+  else {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+}
+
+// ── SEMANTIC COLOR GENERATION ────────────────────────────────────
+// Base hues for each semantic meaning
+const SEMANTIC_BASE = { danger: 4, warning: 52, success: 142 };
+
+// How strongly to pull each semantic hue toward the brand hue.
+// We blend on the hue wheel, favouring the short arc.
+function blendHue(base, brand, strength) {
+  let diff = brand - base;
+  // Normalise to [-180, 180] so we always take the short arc
+  if (diff > 180)  diff -= 360;
+  if (diff < -180) diff += 360;
+  // Clamp the pull: max ±28° so the colour stays readable as its semantic
+  const maxPull = 28;
+  const pull = Math.max(-maxPull, Math.min(maxPull, diff * strength));
+  return ((base + pull) % 360 + 360) % 360;
+}
+
+function generateSemantic(brandHsl) {
+  const bh = brandHsl.h;
+  // Strength: how much brand hue bleeds into each semantic (0–1)
+  // Kept modest so colours stay unambiguously danger/warning/success
+  const strength = 0.35;
+
+  const make = (baseHue, sat, lightFg, lightSubtle) => {
+    const h = blendHue(baseHue, bh, strength);
+    return {
+      fg:     tintedNeutral(h, lightFg,     sat),
+      subtle: tintedNeutral(h, lightSubtle, sat * 0.28),
+      text:   tintedNeutral(h, 28,          sat * 0.7),
+      hue:    h
+    };
+  };
+
+  return {
+    danger:  make(SEMANTIC_BASE.danger,  72, 48, 95),
+    warning: make(SEMANTIC_BASE.warning, 70, 48, 95),
+    success: make(SEMANTIC_BASE.success, 58, 40, 95),
+  };
+}
+
+
+function tintedNeutral(hue, lightness, saturation) {
+  const { r, g, b } = hslToRgb(hue, saturation, lightness);
+  return rgbToHex(r, g, b);
+}
+
+function generatePalette(hex) {
+  const rgb = hexToRgb(hex);
+  const brandHsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+  return {
+    brand:        hex.toUpperCase(),
+    bg:           tintedNeutral(brandHsl.h, 96.5,  4),
+    surface:      tintedNeutral(brandHsl.h, 99.0,  2),
+    surface2:     tintedNeutral(brandHsl.h, 93.5,  8),
+    border:       tintedNeutral(brandHsl.h, 88.5, 12),
+    borderStrong: tintedNeutral(brandHsl.h, 78.0, 18),
+    text:         tintedNeutral(brandHsl.h, 11.5, 18),
+    text2:        tintedNeutral(brandHsl.h, 28.0, 24),
+    textMuted:    tintedNeutral(brandHsl.h, 52.0, 16),
+    brandSubtle:  tintedNeutral(brandHsl.h, 94.0, 40),
+    semantic:     generateSemantic(brandHsl),
+    rgb,
+    brandHsl
+  };
+}
+
+// ── APPLY ───────────────────────────────────────────────────────
+
+function applyPalette(p) {
+  const root = document.documentElement;
+  const { r, g, b } = p.rgb;
+
+  const shadowSm = `0 1px 3px rgba(${r},${g},${b},0.08), 0 0 0 1px rgba(${r},${g},${b},0.04)`;
+  const shadowMd = `0 4px 16px rgba(${r},${g},${b},0.10), 0 1px 4px rgba(${r},${g},${b},0.06)`;
+  const shadowLg = `0 12px 40px rgba(${r},${g},${b},0.12), 0 2px 8px rgba(${r},${g},${b},0.06)`;
+
+  const vars = {
+    '--color-brand':         p.brand,
+    '--color-brand-subtle':  p.brandSubtle,
+    '--color-brand-alpha':   `rgba(${r},${g},${b},0.14)`,
+    '--color-bg':            p.bg,
+    '--color-surface':       p.surface,
+    '--color-surface-2':     p.surface2,
+    '--color-border':        p.border,
+    '--color-border-strong': p.borderStrong,
+    '--color-text':          p.text,
+    '--color-text-2':        p.text2,
+    '--color-text-muted':    p.textMuted,
+    '--shadow-sm':           shadowSm,
+    '--shadow-md':           shadowMd,
+    '--shadow-lg':           shadowLg,
+  };
+
+  Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
+
+  // Shadow text
+  document.getElementById('shadow-sm-val').textContent = shadowSm;
+  document.getElementById('shadow-md-val').textContent = shadowMd;
+  document.getElementById('shadow-lg-val').textContent = shadowLg;
+
+  // Text hierarchy samples
+  [['text-sample-1','text-hex-1', p.text],
+   ['text-sample-2','text-hex-2', p.text2],
+   ['text-sample-3','text-hex-3', p.textMuted]
+  ].forEach(([sid, hid, color]) => {
+    document.getElementById(sid).style.color = color;
+    document.getElementById(hid).textContent = color;
+  });
+
+  // Brand displays
+  document.getElementById('brandHexDisplay').textContent = p.brand;
+  document.getElementById('dead-accent').style.background = p.brand;
+  document.getElementById('compare-alive-label').textContent =
+    `bg: ${p.surface.toLowerCase()} · text: ${p.text2.toLowerCase()}`;
+  document.getElementById('signup-link').style.color = p.brand;
+
+  // Semantic CSS vars
+  const sem = p.semantic;
+  const semVars = {
+    '--color-danger':         sem.danger.fg,
+    '--color-danger-subtle':  sem.danger.subtle,
+    '--color-danger-text':    sem.danger.text,
+    '--color-warning':        sem.warning.fg,
+    '--color-warning-subtle': sem.warning.subtle,
+    '--color-warning-text':   sem.warning.text,
+    '--color-success':        sem.success.fg,
+    '--color-success-subtle': sem.success.subtle,
+    '--color-success-text':   sem.success.text,
+  };
+  Object.entries(semVars).forEach(([k, v]) => root.style.setProperty(k, v));
+
+  // Semantic grid
+  renderSemanticGrid(sem, p.brandHsl);
+
+  // Semantic alert demo
+  renderSemanticDemo(sem);
+
+  // Hue shift explanation chips
+  renderHueExplanation(p.brandHsl, sem);
+
+  // Token grids
+  renderGrid('surface-grid', [
+    { name: '--color-bg',        value: p.bg,       desc: 'Page background · white + ~3% hue' },
+    { name: '--color-surface',   value: p.surface,  desc: 'Cards, panels · white + ~1.5% hue' },
+    { name: '--color-surface-2', value: p.surface2, desc: 'Subtle fills, hover states' },
+  ]);
+  renderGrid('border-grid', [
+    { name: '--color-border',        value: p.border,       desc: 'Default dividers, input borders' },
+    { name: '--color-border-strong', value: p.borderStrong, desc: 'Emphasized borders, focus rings' },
+  ]);
+  renderGrid('brand-grid', [
+    { name: '--color-brand',        value: p.brand,       desc: 'Primary brand, CTAs, links' },
+    { name: '--color-brand-subtle', value: p.brandSubtle, desc: 'Badge backgrounds, hover fills' },
+  ]);
+
+  // CSS block
+  document.getElementById('css-code').textContent =
+`:root {
+  /* Brand */
+  --color-brand:         ${p.brand};
+  --color-brand-subtle:  ${p.brandSubtle};
+
+  /* Backgrounds */
+  --color-bg:            ${p.bg};
+  --color-surface:       ${p.surface};
+  --color-surface-2:     ${p.surface2};
+
+  /* Borders */
+  --color-border:        ${p.border};
+  --color-border-strong: ${p.borderStrong};
+
+  /* Text */
+  --color-text:          ${p.text};
+  --color-text-2:        ${p.text2};
+  --color-text-muted:    ${p.textMuted};
+
+  /* Shadows */
+  --shadow-sm: ${shadowSm};
+  --shadow-md: ${shadowMd};
+  --shadow-lg: ${shadowLg};
+
+  /* Semantic — Danger */
+  --color-danger:         ${p.semantic.danger.fg};
+  --color-danger-subtle:  ${p.semantic.danger.subtle};
+  --color-danger-text:    ${p.semantic.danger.text};
+
+  /* Semantic — Warning */
+  --color-warning:        ${p.semantic.warning.fg};
+  --color-warning-subtle: ${p.semantic.warning.subtle};
+  --color-warning-text:   ${p.semantic.warning.text};
+
+  /* Semantic — Success */
+  --color-success:        ${p.semantic.success.fg};
+  --color-success-subtle: ${p.semantic.success.subtle};
+  --color-success-text:   ${p.semantic.success.text};
+}`;
+}
+
+// ── SEMANTIC RENDERING ───────────────────────────────────────────
+
+const SEMANTIC_META = {
+  danger:  { label: 'Danger',  icon: '✕', nameHint: 'red-family'    },
+  warning: { label: 'Warning', icon: '!', nameHint: 'amber-family'  },
+  success: { label: 'Success', icon: '✓', nameHint: 'green-family'  },
+};
+
+function renderSemanticGrid(sem, brandHsl) {
+  const grid = document.getElementById('semantic-grid');
+  grid.innerHTML = '';
+
+  ['danger', 'warning', 'success'].forEach(key => {
+    const s = sem[key];
+    const m = SEMANTIC_META[key];
+    const card = document.createElement('div');
+    card.className = 'semantic-card';
+    card.innerHTML = `
+      <div class="semantic-swatch-row">
+        <div class="semantic-swatch-piece" style="background:${s.subtle}" title="${s.subtle}" onclick="copyText('${s.subtle}','--color-${key}-subtle')">
+          <div class="copy-hint">Copy</div>
+        </div>
+        <div class="semantic-swatch-piece" style="background:${s.fg}" title="${s.fg}" onclick="copyText('${s.fg}','--color-${key}')">
+          <div class="copy-hint">Copy</div>
+        </div>
+        <div class="semantic-swatch-piece" style="background:${s.text}" title="${s.text}" onclick="copyText('${s.text}','--color-${key}-text')">
+          <div class="copy-hint">Copy</div>
+        </div>
+      </div>
+      <div class="semantic-body">
+        <div class="semantic-title" style="color:${s.fg}">${m.label}</div>
+        <div class="semantic-tokens">
+          ${[
+            ['--color-'+key+'-subtle', s.subtle, s.subtle],
+            ['--color-'+key,           s.fg,     s.fg],
+            ['--color-'+key+'-text',   s.text,   s.text],
+          ].map(([name, val, color]) => `
+            <div class="semantic-token-row">
+              <div style="display:flex;align-items:center;gap:5px;">
+                <div class="semantic-dot" style="background:${val}"></div>
+                <span class="semantic-token-name">${name}</span>
+              </div>
+              <span class="semantic-token-val" style="color:${s.fg}" onclick="copyText('${val}','${name}')">${val}</span>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function renderSemanticDemo(sem) {
+  const demo = document.getElementById('semantic-demo');
+  demo.innerHTML = '';
+
+  const alerts = [
+    {
+      key: 'danger',
+      title: 'Payment failed',
+      body: 'Your card ending in 4242 was declined. Please update your payment method.',
+    },
+    {
+      key: 'warning',
+      title: 'Trial ending soon',
+      body: 'Your free trial expires in 3 days. Upgrade to keep access to all features.',
+    },
+    {
+      key: 'success',
+      title: 'Changes saved',
+      body: 'Your profile has been updated and all team members have been notified.',
+    },
+  ];
+
+  alerts.forEach(({ key, title, body }) => {
+    const s = sem[key];
+    const m = SEMANTIC_META[key];
+    const el = document.createElement('div');
+    el.className = 'alert-card';
+    el.style.cssText = `background:${s.subtle}; border-left-color:${s.fg};`;
+    el.innerHTML = `
+      <div class="alert-header">
+        <div class="alert-icon" style="background:${s.fg}; color:#fff">${m.icon}</div>
+        <span class="alert-title" style="color:${s.text}">${title}</span>
+      </div>
+      <p class="alert-body" style="color:${s.text}; opacity:0.85">${body}</p>`;
+    demo.appendChild(el);
+  });
+}
+
+function renderHueExplanation(brandHsl, sem) {
+  const row = document.getElementById('hue-shift-explanation');
+  row.innerHTML = '';
+
+  const items = [
+    { label: `Brand hue ${Math.round(brandHsl.h)}°`, color: `hsl(${brandHsl.h},${brandHsl.s}%,${brandHsl.l}%)` },
+    { label: `Danger → ${Math.round(sem.danger.hue)}°`,  color: sem.danger.fg  },
+    { label: `Warning → ${Math.round(sem.warning.hue)}°`, color: sem.warning.fg },
+    { label: `Success → ${Math.round(sem.success.hue)}°`, color: sem.success.fg },
+  ];
+
+  items.forEach(({ label, color }) => {
+    const chip = document.createElement('div');
+    chip.className = 'hue-chip';
+    chip.innerHTML = `<div class="hue-chip-dot" style="background:${color}"></div>${label}`;
+    row.appendChild(chip);
+  });
+}
+
+// ── GRID ────────────────────────────────────────────────────────
+
+function renderGrid(id, list) {
+  const grid = document.getElementById(id);
+  grid.innerHTML = '';
+  list.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'token-card';
+    el.onclick = () => copyText(t.value, t.name);
+    el.innerHTML = `
+      <div class="swatch" style="background:${t.value}">
+        <div class="copy-hint">Click to copy</div>
+      </div>
+      <div class="token-info">
+        <div class="token-name">${t.name}</div>
+        <div class="token-value">${t.value}</div>
+        <div class="token-desc">${t.desc}</div>
+      </div>`;
+    grid.appendChild(el);
+  });
+}
+
+// ── INPUT HANDLING ───────────────────────────────────────────────
+
+function applyFromInput() {
+  const raw = document.getElementById('hexInput').value.trim().replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(raw)) {
+    document.getElementById('hexInput').classList.add('invalid');
+    return;
+  }
+  document.getElementById('hexInput').classList.remove('invalid');
+  const hex = '#' + raw.toUpperCase();
+  document.getElementById('colorPicker').value = hex;
+  applyPalette(generatePalette(hex));
+}
+
+document.getElementById('colorPicker').addEventListener('input', e => {
+  const hex = e.target.value.toUpperCase();
+  document.getElementById('hexInput').value = hex.replace('#', '');
+  document.getElementById('hexInput').classList.remove('invalid');
+  applyPalette(generatePalette(hex));
+});
+
+document.getElementById('hexInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') applyFromInput();
+});
+
+document.getElementById('hexInput').addEventListener('input', e => {
+  e.target.classList.remove('invalid');
+  const raw = e.target.value.replace('#', '');
+  if (/^[0-9a-fA-F]{6}$/.test(raw)) {
+    const hex = '#' + raw.toUpperCase();
+    document.getElementById('colorPicker').value = hex;
+    applyPalette(generatePalette(hex));
+  }
+});
+
+// ── COPY ─────────────────────────────────────────────────────────
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function copyText(val, name) {
+  navigator.clipboard.writeText(val).then(() => showToast(`Copied ${name}: ${val}`));
+}
+
+function copyCSS() {
+  const text = document.getElementById('css-code').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('CSS tokens copied!'));
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+applyPalette(generatePalette('#7034CA'));
+</script>
+</body>
+</html>
