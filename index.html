@@ -137,7 +137,8 @@
   .text-row:last-child { border-bottom: none; }
   .text-row-label { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); width: 110px; flex-shrink: 0; transition: color 0.4s; }
   .text-row-sample { flex: 1; transition: color 0.4s; }
-  .text-row-hex { font-size: 0.65rem; color: var(--color-text-muted); opacity: 0.7; }
+  .text-row-hex { font-size: 0.65rem; color: var(--color-text-muted); opacity: 0.7; cursor: pointer; border-radius: 3px; padding: 2px 4px; transition: background 0.15s, opacity 0.15s; }
+  .text-row-hex:hover { opacity: 1; background: var(--color-surface-2); }
 
   .live-demo { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .demo-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 24px; box-shadow: var(--shadow-md); transition: background 0.4s, border-color 0.4s, box-shadow 0.4s; }
@@ -607,9 +608,12 @@ function applyPalette(p) {
   Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
 
   // Keep URL in sync so the current palette is always shareable
-  const url = new URL(window.location);
-  url.searchParams.set('color', p.brand.replace('#', ''));
-  window.history.replaceState({}, '', url);
+  // (wrapped in try/catch as sandboxed previews disallow history API)
+  try {
+    const url = new URL(window.location);
+    url.searchParams.set('color', p.brand.replace('#', ''));
+    window.history.replaceState({}, '', url);
+  } catch(e) {}
 
   // Shadow text
   document.getElementById('shadow-sm-val').textContent = shadowSm;
@@ -617,12 +621,14 @@ function applyPalette(p) {
   document.getElementById('shadow-lg-val').textContent = shadowLg;
 
   // Text hierarchy samples
-  [['text-sample-1','text-hex-1', p.text],
-   ['text-sample-2','text-hex-2', p.text2],
-   ['text-sample-3','text-hex-3', p.textMuted]
-  ].forEach(([sid, hid, color]) => {
+  [['text-sample-1', 'text-hex-1', p.text,      '--color-text'],
+   ['text-sample-2', 'text-hex-2', p.text2,     '--color-text-2'],
+   ['text-sample-3', 'text-hex-3', p.textMuted, '--color-text-muted']
+  ].forEach(([sid, hid, color, token]) => {
     document.getElementById(sid).style.color = color;
-    document.getElementById(hid).textContent = color;
+    const hexEl = document.getElementById(hid);
+    hexEl.textContent = color;
+    hexEl.onclick = () => copyText(color, token);
   });
 
   // Brand displays
