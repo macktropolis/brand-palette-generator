@@ -606,6 +606,11 @@ function applyPalette(p) {
 
   Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
 
+  // Keep URL in sync so the current palette is always shareable
+  const url = new URL(window.location);
+  url.searchParams.set('color', p.brand.replace('#', ''));
+  window.history.replaceState({}, '', url);
+
   // Shadow text
   document.getElementById('shadow-sm-val').textContent = shadowSm;
   document.getElementById('shadow-md-val').textContent = shadowMd;
@@ -892,7 +897,15 @@ function copyCSS() {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────
-applyPalette(generatePalette('#7034CA'));
+const urlParams = new URLSearchParams(window.location.search);
+const urlColor = urlParams.get('color');
+const initHex = (urlColor && /^[0-9a-fA-F]{6}$/.test(urlColor.replace('#', '')))
+  ? '#' + urlColor.replace('#', '').toUpperCase()
+  : '#7034CA';
+
+document.getElementById('colorPicker').value = initHex;
+document.getElementById('hexInput').value = initHex.replace('#', '');
+applyPalette(generatePalette(initHex));
 </script>
 </body>
 </html>
