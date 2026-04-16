@@ -558,6 +558,7 @@ function generateSemantic(brandHsl) {
   };
 }
 
+
 function tintedNeutral(hue, lightness, saturation) {
   const { r, g, b } = hslToRgb(hue, saturation, lightness);
   return rgbToHex(r, g, b);
@@ -881,13 +882,11 @@ document.getElementById('hexInput').addEventListener('keydown', e => {
 });
 
 document.getElementById('hexInput').addEventListener('input', e => {
+  // Clear invalid state as the user types, but don't auto-apply the palette.
+  // Applying the palette is the Generate button's (and Enter key's) job —
+  // otherwise clicking Generate after a valid hex appears to do nothing
+  // because the palette already updated on the last keystroke.
   e.target.classList.remove('invalid');
-  const raw = e.target.value.replace('#', '');
-  if (/^[0-9a-fA-F]{6}$/.test(raw)) {
-    const hex = '#' + raw.toUpperCase();
-    document.getElementById('colorPicker').value = hex;
-    applyPalette(generatePalette(hex));
-  }
 });
 
 // ── COPY ─────────────────────────────────────────────────────────
