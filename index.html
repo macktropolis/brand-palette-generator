@@ -513,17 +513,24 @@ function hslToRgb(h, s, l) {
 
 // ── SEMANTIC COLOR GENERATION ────────────────────────────────────
 // Base hues for each semantic meaning
-const SEMANTIC_BASE = { danger: 4, warning: 52, success: 142 };
+// Warning sits at 48° (true yellow center). Yellow's perceptually
+// recognizable band is narrow (~40–58°), so it needs a tighter pull
+// clamp than danger or success.
+const SEMANTIC_BASE = { danger: 4, warning: 48, success: 142 };
+
+// Per-semantic max pull (degrees). Yellow is fragile — anything beyond
+// ~8° starts reading as yellow-green or olive. Red and green have much
+// wider recognizable bands and tolerate a larger pull toward the brand.
+const SEMANTIC_MAX_PULL = { danger: 28, warning: 8, success: 28 };
 
 // How strongly to pull each semantic hue toward the brand hue.
 // We blend on the hue wheel, favouring the short arc.
-function blendHue(base, brand, strength) {
+function blendHue(base, brand, strength, maxPull) {
   let diff = brand - base;
   // Normalise to [-180, 180] so we always take the short arc
   if (diff > 180)  diff -= 360;
   if (diff < -180) diff += 360;
-  // Clamp the pull: max ±28° so the colour stays readable as its semantic
-  const maxPull = 28;
+  // Clamp the pull so the colour stays readable as its semantic
   const pull = Math.max(-maxPull, Math.min(maxPull, diff * strength));
   return ((base + pull) % 360 + 360) % 360;
 }
@@ -534,8 +541,8 @@ function generateSemantic(brandHsl) {
   // Kept modest so colours stay unambiguously danger/warning/success
   const strength = 0.35;
 
-  const make = (baseHue, sat, lightFg, lightSubtle) => {
-    const h = blendHue(baseHue, bh, strength);
+  const make = (baseHue, sat, lightFg, lightSubtle, maxPull) => {
+    const h = blendHue(baseHue, bh, strength, maxPull);
     return {
       fg:     tintedNeutral(h, lightFg,     sat),
       subtle: tintedNeutral(h, lightSubtle, sat * 0.28),
@@ -545,12 +552,11 @@ function generateSemantic(brandHsl) {
   };
 
   return {
-    danger:  make(SEMANTIC_BASE.danger,  72, 48, 95),
-    warning: make(SEMANTIC_BASE.warning, 70, 48, 95),
-    success: make(SEMANTIC_BASE.success, 58, 40, 95),
+    danger:  make(SEMANTIC_BASE.danger,  72, 48, 95, SEMANTIC_MAX_PULL.danger),
+    warning: make(SEMANTIC_BASE.warning, 78, 50, 95, SEMANTIC_MAX_PULL.warning),
+    success: make(SEMANTIC_BASE.success, 58, 40, 95, SEMANTIC_MAX_PULL.success),
   };
 }
-
 
 function tintedNeutral(hue, lightness, saturation) {
   const { r, g, b } = hslToRgb(hue, saturation, lightness);
